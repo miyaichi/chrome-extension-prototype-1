@@ -18,6 +18,18 @@ export interface Message<T = any> {
   timestamp: number;
 }
 
+class Logger {
+  constructor(private context: Context) {}
+
+  log(message: string, ...args: any[]) {
+    console.log(`[${this.context}] ${message}`, ...args);
+  }
+
+  error(message: string, ...args: any[]) {
+    console.error(`[${this.context}] ${message}`, ...args);
+  }
+}
+
 export class ConnectionManager {
   private static instance: ConnectionManager;
   private context: Context = 'content';
@@ -26,8 +38,10 @@ export class ConnectionManager {
   private messageHandlers: Map<MessageType, ((message: Message) => void)[]> = new Map();
   private isSettingUp = false;
   private isInvalidated = false;
+  private logger: Logger;
 
   private constructor() {
+    this.logger = new Logger(this.context);
     this.setupConnections();
   }
 
@@ -40,11 +54,12 @@ export class ConnectionManager {
 
   public setContext(context: Context) {
     if (this.context === context) {
-      console.log(`[${context}] Context already set, skipping...`);
+      this.logger.log(`Context already set, skipping...`);
       return;
     }
     
     this.context = context;
+    this.logger = new Logger(context);
     this.isSettingUp = false;
     this.isInvalidated = false;
     this.setupConnections();
@@ -61,53 +76,53 @@ export class ConnectionManager {
 
   private setupClientConnections() {
     if (this.isSettingUp) {
-      console.log(`[${this.context}] Setup already in progress, skipping...`);
+      this.logger.log('Setup already in progress, skipping...');
       return;
     }
 
     this.isSettingUp = true;
-    console.log(`[${this.context}] Setting up client connections...`);
+    this.logger.log('Setting up client connections...');
     
-    console.log(`[${this.context}] Scheduling initial connection...`);
+    this.logger.log('Scheduling initial connection...');
     setTimeout(this.connectToBackground, 100);
   }
 
   private connectToBackground = () => {
     if (this.context === 'background') {
-      console.log('[background] Skipping connection as background context');
+      this.logger.log('Skipping connection as background context');
       return;
     }
 
     try {
-      console.log(`[${this.context}] Attempting to connect...`);
+      this.logger.log('Attempting to connect...');
       this.port = chrome.runtime.connect({ name: `${this.context}-${Date.now()}` });
-      console.log(`[${this.context}] Connected successfully as ${this.port.name}`);
+      this.logger.log(`Connected successfully as ${this.port.name}`);
 
       this.port.onMessage.addListener((message) => {
-        console.log(`[${this.context}] Received message:`, message);
+        this.logger.log('Received message:', message);
         this.handleMessage(message);
       });
 
       this.port.onDisconnect.addListener(this.handleDisconnect);
 
     } catch (error) {
-      console.error(`[${this.context}] Connection error:`, error);
+      this.logger.error('Connection error:', error);
       this.scheduleReconnect();
     }
   }
 
   private handleDisconnect = () => {
     const error = chrome.runtime.lastError;
-    console.log(`[${this.context}] Disconnected, error:`, error);
+    this.logger.log('Disconnected, error:', error);
     
     if (this.isExtensionContextInvalidated(error)) {
       this.isInvalidated = true;
-      console.log(`[${this.context}] Context invalidated, stopping reconnection`);
+      this.logger.log('Context invalidated, stopping reconnection');
       return;
     }
 
     if (this.context === 'background') {
-      console.log('[background] Skipping reconnection as background context');
+      this.logger.log('Skipping reconnection as background context');
       return;
     }
 
@@ -133,27 +148,27 @@ export class ConnectionManager {
     }
 
     if (!this.isInvalidated) {
-      console.log(`[${this.context}] Scheduling reconnection...`);
+      this.logger.log('Scheduling reconnection...');
       setTimeout(this.connectToBackground, 1000);
     }
   }
 
   private setupBackgroundConnections() {
-    console.log('[background] Setting up background connections...'); 
+    this.logger.log('Setting up background connections...'); 
 
     chrome.runtime.onConnect.addListener(port => {
-      console.log(`[background] New connection from ${port.name}`);
+      this.logger.log(`New connection from ${port.name}`);
       this.ports.set(port.name, port);
 
       port.onMessage.addListener((message) => {
-        console.log(`[background] Received message from ${port.name}:`, message);
+        this.logger.log(`Received message from ${port.name}:`, message);
         this.handleMessage(message);
         this.broadcast(message, port);
       });
 
       port.onDisconnect.addListener(() => {
         const error = chrome.runtime.lastError;
-        console.log(`[background] ${port.name} disconnected, error:`, error);
+        this.logger.log(`${port.name} disconnected, error:`, error);
         this.ports.delete(port.name);
       });
     });
@@ -181,7 +196,7 @@ export class ConnectionManager {
           this.port.postMessage(message);
         }
       } catch (error) {
-        console.error('Send error:', error);
+        this.logger.error('Send error:', error);
       }
       resolve();
     });
@@ -206,7 +221,7 @@ export class ConnectionManager {
   }
 
   private handleMessage(message: Message) {
-    console.log(`${this.context} received:`, message);
+    this.logger.log('received:', message);
     const handlers = this.messageHandlers.get(message.type) || [];
     handlers.forEach(handler => handler(message));
   }
@@ -219,7 +234,7 @@ export class ConnectionManager {
         try {
           port.postMessage(message);
         } catch (error) {
-          console.error(`Broadcast error to ${port.name}:`, error);
+          this.logger.error(`Broadcast error to ${port.name}:`, error);
         }
       }
     });

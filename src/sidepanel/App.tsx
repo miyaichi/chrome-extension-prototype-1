@@ -2,29 +2,37 @@
 import React, { useEffect, useState } from 'react';
 import { ConnectionManager, Message, useConnectionManager } from '../lib/connectionManager';
 
-export function App() {
+class Logger {
+  log(message: string, ...args: any[]) {
+    console.log(`[sidepanel] ${message}`, ...args);
+  }
+
+  error(message: string, ...args: any[]) {
+    console.error(`[sidepanel] ${message}`, ...args);
+  }
+}
+
+export const App = () => {
   const { sendMessage, subscribe } = useConnectionManager();
   const [messages, setMessages] = useState<Message[]>([]);
   const [connected, setConnected] = useState(false);
+  const logger = new Logger();
 
   useEffect(() => {
-    // コンテキストを設定
     ConnectionManager.getInstance().setContext('sidepanel');
 
-    // Side Panelの準備完了通知
     const initConnection = async () => {
       try {
         await sendMessage('SIDE_PANEL_READY', { timestamp: Date.now() });
         setConnected(true);
       } catch (error) {
-        console.error('Connection error:', error);
+        logger.error('Connection error:', error);
         setConnected(false);
       }
     };
 
     initConnection();
 
-    // メッセージの購読
     const unsubscribe = subscribe('*' as any, (message: Message) => {
       setMessages(prev => [...prev, message].slice(-50));
     });
