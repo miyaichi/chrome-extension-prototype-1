@@ -31,7 +31,9 @@ class Logger {
 }
 
 export class ConnectionManager {
-  private static instance: ConnectionManager;
+  private static instance: ConnectionManager; // Singleton instance
+  private static readonly RECONNECT_DELAY = 1000;
+  private static readonly INITIAL_CONNECTION_DELAY = 100;
   private context: Context = 'content';
   private port?: chrome.runtime.Port;
   private ports: Map<string, chrome.runtime.Port> = new Map();
@@ -84,7 +86,7 @@ export class ConnectionManager {
     this.logger.log('Setting up client connections...');
     
     this.logger.log('Scheduling initial connection...');
-    setTimeout(this.connectToBackground, 100);
+    setTimeout(this.connectToBackground, ConnectionManager.INITIAL_CONNECTION_DELAY);
   }
 
   private connectToBackground = () => {
@@ -149,7 +151,7 @@ export class ConnectionManager {
 
     if (!this.isInvalidated) {
       this.logger.log('Scheduling reconnection...');
-      setTimeout(this.connectToBackground, 1000);
+      setTimeout(this.connectToBackground, ConnectionManager.RECONNECT_DELAY);
     }
   }
 
