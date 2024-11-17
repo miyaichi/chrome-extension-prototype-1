@@ -51,13 +51,11 @@ export class ConnectionManager {
   }
 
   private setupConnections() {
-    // Backgroundの場合は受信側の設定のみ
     if (this.context === 'background') {
       this.setupBackgroundConnections();
       return;
     }
     
-    // Content ScriptとSide Panelの場合は接続を確立
     this.setupClientConnections();
   }
 
@@ -70,13 +68,11 @@ export class ConnectionManager {
     this.isSettingUp = true;
     console.log(`[${this.context}] Setting up client connections...`);
     
-    // 初回接続を遅延実行
     console.log(`[${this.context}] Scheduling initial connection...`);
     setTimeout(this.connectToBackground, 100);
   }
 
   private connectToBackground = () => {
-    // Background contextの場合は接続しない
     if (this.context === 'background') {
       console.log('[background] Skipping connection as background context');
       return;
@@ -110,7 +106,6 @@ export class ConnectionManager {
       return;
     }
 
-    // Background contextの場合は再接続しない
     if (this.context === 'background') {
       console.log('[background] Skipping reconnection as background context');
       return;
@@ -133,7 +128,6 @@ export class ConnectionManager {
   }
 
   private scheduleReconnect() {
-    // Background contextの場合は再接続をスケジュールしない
     if (this.context === 'background') {
       return;
     }
