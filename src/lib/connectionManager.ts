@@ -56,7 +56,7 @@ export class ConnectionManager {
 
   public setContext(context: Context) {
     if (this.context === context) {
-      this.logger.log(`Context already set, skipping...`);
+      this.logger.log('Context already set, skipping...');
       return;
     }
     
