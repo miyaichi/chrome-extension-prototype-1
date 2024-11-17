@@ -51,9 +51,14 @@ export class ConnectionManager {
   }
 
   private setupConnections() {
-    this.context === 'background' 
-      ? this.setupBackgroundConnections()
-      : this.setupClientConnections();
+    // Backgroundの場合は受信側の設定のみ
+    if (this.context === 'background') {
+      this.setupBackgroundConnections();
+      return;
+    }
+    
+    // Content ScriptとSide Panelの場合は接続を確立
+    this.setupClientConnections();
   }
 
   private setupClientConnections() {
@@ -71,6 +76,12 @@ export class ConnectionManager {
   }
 
   private connectToBackground = () => {
+    // Background contextの場合は接続しない
+    if (this.context === 'background') {
+      console.log('[background] Skipping connection as background context');
+      return;
+    }
+
     try {
       console.log(`[${this.context}] Attempting to connect...`);
       this.port = chrome.runtime.connect({ name: `${this.context}-${Date.now()}` });
@@ -99,6 +110,12 @@ export class ConnectionManager {
       return;
     }
 
+    // Background contextの場合は再接続しない
+    if (this.context === 'background') {
+      console.log('[background] Skipping reconnection as background context');
+      return;
+    }
+
     this.port = undefined;
     this.scheduleReconnect();
   }
@@ -116,6 +133,11 @@ export class ConnectionManager {
   }
 
   private scheduleReconnect() {
+    // Background contextの場合は再接続をスケジュールしない
+    if (this.context === 'background') {
+      return;
+    }
+
     if (!this.isInvalidated) {
       console.log(`[${this.context}] Scheduling reconnection...`);
       setTimeout(this.connectToBackground, 1000);
